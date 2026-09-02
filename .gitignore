@@ -1,0 +1,31 @@
+# ===== IDE =====
+.idea/
+.vscode/
+*.iml
+
+# ===== Java / Maven =====
+ecommerce-server/target/
+*.class
+*.log
+hs_err_pid*
+
+# ===== Node =====
+node_modules/
+dist/
+*.local
+
+# ===== Python =====
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+chroma_db/
+
+# ===== 运行时数据 / 日志 =====
+server.log
+*.sqlite3
+*.db
+
+# ===== 系统文件 =====
+.DS_Store
+Thumbs.db
