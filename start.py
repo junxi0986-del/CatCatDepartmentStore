@@ -134,8 +134,11 @@ def main():
         # 使用Maven运行，需要配置好环境
         server_env = os.environ.copy()
         server_env['MAVEN_OPTS'] = '-Xms512m -Xmx1024m'
+        # 优先使用项目自带的 Maven Wrapper，无需全局安装 Maven
+        mvnw = os.path.join(SERVER_DIR, 'mvnw.cmd')
+        server_cmd = f'"{mvnw}" spring-boot:run' if os.path.exists(mvnw) else 'mvn spring-boot:run'
         run_command(
-            'mvn spring-boot:run',
+            server_cmd,
             cwd=SERVER_DIR,
             env=server_env,
             name='Java后端'
@@ -153,8 +156,13 @@ def main():
         rag_env = os.environ.copy()
         rag_env['HF_HUB_OFFLINE'] = '1'
         rag_env['DEEPSEEK_API_KEY'] = os.environ.get('DEEPSEEK_API_KEY', '')
+        rag_env['PYTHONUTF8'] = '1'
+        rag_env['PYTHONDONTWRITEBYTECODE'] = '1'
+        # 优先使用项目虚拟环境中的 Python
+        venv_python = os.path.join(RAG_DIR, '.venv', 'Scripts', 'python.exe')
+        python_cmd = f'"{venv_python}"' if os.path.exists(venv_python) else 'python'
         run_command(
-            f'python {os.path.join(RAG_DIR, "main.py")} api --port {RAG_PORT}',
+            f'{python_cmd} {os.path.join(RAG_DIR, "main.py")} api --port {RAG_PORT}',
             cwd=RAG_DIR,
             env=rag_env,
             name='RAG服务'

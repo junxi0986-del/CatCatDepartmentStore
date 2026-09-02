@@ -25,6 +25,7 @@ chroma_db/
 server.log
 *.sqlite3
 *.db
+**/static/chat_images/
 
 # ===== 系统文件 =====
 .DS_Store
