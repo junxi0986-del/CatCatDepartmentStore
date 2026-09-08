@@ -145,11 +145,11 @@ export default {
       if (url.startsWith('http')) {
         if (url.includes('test.com')) {
           const fileName = url.split('/').pop()
-          return `http://localhost:8083/api/images/${fileName}`
+          return `/api/images/${fileName}`
         }
         return url
       }
-      return `http://localhost:8083/api/${url}`
+      return `/api/${url}`
     }
 
     const formatTime = () => {

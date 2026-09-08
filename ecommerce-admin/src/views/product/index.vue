@@ -137,7 +137,7 @@
             <div class="upload-item">
               <span class="upload-label">商品主图：</span>
               <a-upload
-                action="http://localhost:8083/api/admin/product/upload"
+                action="/api/admin/product/upload"
                 :on-success="handleMainPicSuccess"
                 :on-error="handleUploadError"
                 :show-upload-list="false"
@@ -154,7 +154,7 @@
             <div class="upload-item">
               <span class="upload-label">详情图集：</span>
               <a-upload
-                action="http://localhost:8083/api/admin/product/uploadSingle"
+                action="/api/admin/product/uploadSingle"
                 :on-success="handleImagesSuccess"
                 :on-error="handleUploadError"
                 :show-upload-list="false"

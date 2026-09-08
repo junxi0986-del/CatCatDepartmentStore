@@ -165,9 +165,9 @@ export default {
         return avatar
       }
       if (avatar.startsWith('/')) {
-        return `http://localhost:8083${avatar}`
+        return avatar
       }
-      return `http://localhost:8083/api/${avatar}`
+      return `/api/${avatar}`
     },
     search() {
       let keyword = this.searchKeyword

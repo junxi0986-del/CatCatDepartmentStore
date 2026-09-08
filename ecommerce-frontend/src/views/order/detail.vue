@@ -474,11 +474,11 @@ export default {
       if (url.startsWith('http')) {
         if (url.includes('test.com')) {
           const fileName = url.split('/').pop()
-          return `http://localhost:8083/api/images/${fileName}`
+          return `/api/images/${fileName}`
         }
         return url
       }
-      return `http://localhost:8083/api/${url}`
+      return `/api/${url}`
     }
 
     const initCountdown = () => {
@@ -529,7 +529,7 @@ export default {
 
     const loadOrderDetail = async () => {
       try {
-        const configRes = await fetch('http://localhost:8083/api/admin/system/config')
+        const configRes = await fetch('/api/admin/system/config')
         const configData = await configRes.json()
         if (configData.code === 200 && configData.data.orderAutoCancel) {
           orderAutoCancelMinutes.value = parseInt(configData.data.orderAutoCancel) || 30
@@ -835,7 +835,7 @@ export default {
           content: item.content
         }))
         
-        const response = await fetch('http://localhost:8083/api/review/add', {
+        const response = await fetch('/api/review/add', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

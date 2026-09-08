@@ -274,12 +274,12 @@ export default {
         // 处理test.com路径，与管理后台保持一致
         if (url.includes('test.com')) {
           const fileName = url.split('/').pop()
-          return `http://localhost:8083/api/images/${fileName}`
+          return `/api/images/${fileName}`
         }
         return url
       }
       // 处理相对路径
-      return `http://localhost:8083/api/${url}`
+      return `/api/${url}`
     }
 
     // 加载商品详情
@@ -314,7 +314,7 @@ export default {
     // 加载推荐商品
     const loadRecommendProducts = async () => {
       try {
-        const response = await fetch('http://localhost:8083/api/recommend')
+        const response = await fetch('/api/recommend')
         const result = await response.json()
         if (result.code === 200 && result.data) {
           recommendProducts.value = result.data
@@ -342,7 +342,7 @@ export default {
     const analyzeProductParams = async () => {
       loadingParams.value = true
       try {
-        const response = await fetch('http://localhost:8083/api/ai/analyzeProduct', {
+        const response = await fetch('/api/ai/analyzeProduct', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -445,7 +445,7 @@ export default {
       loadingReviews.value = true
       try {
         // 先加载真实用户评价
-        const response = await fetch(`http://localhost:8083/api/review/list/${product.value.id}`, {
+        const response = await fetch(`/api/review/list/${product.value.id}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json'
@@ -474,7 +474,7 @@ export default {
         // 如果真实评价少于5条，用AI评价补充
         if (allReviews.length < 5) {
           try {
-            const aiResponse = await fetch('http://localhost:8083/api/ai/generateReviews', {
+            const aiResponse = await fetch('/api/ai/generateReviews', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'

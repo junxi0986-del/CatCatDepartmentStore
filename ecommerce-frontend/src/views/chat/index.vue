@@ -230,7 +230,8 @@ export default {
       
       const effectiveUserId = userId === 'anonymous' ? getGuestUserId() : userId
       
-      let wsUrl = `ws://localhost:8083/api/ws/chat?userType=user&id=${effectiveUserId}`
+      // 同源 WebSocket（本地走 Vite 代理，线上走 Pages Function 透传）
+      let wsUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/ws/chat?userType=user&id=${effectiveUserId}`
       socket.value = new WebSocket(wsUrl)
       
       socket.value.onopen = () => {

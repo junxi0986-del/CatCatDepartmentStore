@@ -411,8 +411,8 @@ export default {
       const adminId = 1
       const adminName = '客服'
       
-      // 建立WebSocket连接（使用绝对路径）
-      socket.value = new WebSocket(`ws://localhost:8083/api/ws/chat?userType=admin&id=${adminId}`)
+      // 建立WebSocket连接（同源，本地走 Vite 代理，线上走 Pages Function 透传）
+      socket.value = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/ws/chat?userType=admin&id=${adminId}`)
       
       socket.value.onopen = () => {
         console.log('WebSocket连接已建立')

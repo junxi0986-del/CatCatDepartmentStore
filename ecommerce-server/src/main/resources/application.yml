@@ -71,9 +71,9 @@ ai:
   # 温度参数（创造性程度）
   temperature: 0.7
 
-# RAG服务配置 (Python服务)
+# RAG服务配置 (Python服务)：云端通过 RAG_SERVICE_URL 覆盖
 rag:
-  service-url: http://localhost:5050
+  service-url: ${RAG_SERVICE_URL:http://localhost:5050}
   enabled: true
 
 logging:

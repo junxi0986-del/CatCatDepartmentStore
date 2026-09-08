@@ -313,7 +313,7 @@ export default {
       dayDetailVisible.value = true
       
       try {
-        const response = await fetch(`http://localhost:8083/api/admin/statistics/ordersByDate?date=${item.date}`)
+        const response = await fetch(`/api/admin/statistics/ordersByDate?date=${item.date}`)
         const res = await response.json()
         if (res.code === 200) {
           dayOrders.value = res.data.map(order => ({
@@ -330,7 +330,7 @@ export default {
     const exportReport = async () => {
       exporting.value = true
       try {
-        const response = await fetch(`http://localhost:8083/api/admin/statistics/exportReport?month=${selectedMonth.value}`)
+        const response = await fetch(`/api/admin/statistics/exportReport?month=${selectedMonth.value}`)
         const blob = await response.blob()
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement('a')
@@ -351,7 +351,7 @@ export default {
       analysisVisible.value = true
       
       try {
-        const response = await fetch('http://localhost:8083/api/ai/analyzeSalesData', {
+        const response = await fetch('/api/ai/analyzeSalesData', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

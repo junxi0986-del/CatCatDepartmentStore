@@ -204,7 +204,7 @@ export default {
     // 加载轮播图
     async loadBanners() {
       try {
-        const res = await fetch('http://localhost:8083/api/admin/banner/active')
+        const res = await fetch('/api/admin/banner/active')
         const data = await res.json()
         if (data.code === 200 && data.data && data.data.length > 0) {
           this.banners = data.data
@@ -227,7 +227,7 @@ export default {
     formatBannerUrl(url) {
       if (!url) return ''
       if (url.startsWith('http')) return url
-      const baseUrl = 'http://localhost:8083/api'
+      const baseUrl = '/api'
       if (url.startsWith('/')) return `${baseUrl}${url}`
       return `${baseUrl}/${url}`
     },
@@ -316,12 +316,12 @@ export default {
         // 处理test.com路径，与管理后台保持一致
         if (url.includes('test.com')) {
           const fileName = url.split('/').pop()
-          return `http://localhost:8083/api/images/${fileName}`
+          return `/api/images/${fileName}`
         }
         return url
       }
       // 处理相对路径
-      return `http://localhost:8083/api/${url}`
+      return `/api/${url}`
     },
     // 格式化日期
     formatDate(dateStr) {

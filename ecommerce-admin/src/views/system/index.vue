@@ -150,7 +150,7 @@ export default {
     const formatImageUrl = (url) => {
       if (!url) return ''
       if (url.startsWith('http')) return url
-      const baseUrl = 'http://localhost:8083/api'
+      const baseUrl = '/api'
       if (url.startsWith('/')) return `${baseUrl}${url}`
       return `${baseUrl}/${url}`
     }
@@ -177,7 +177,7 @@ export default {
 
     const loadBanners = async () => {
       try {
-        const res = await axios.get('http://localhost:8083/api/admin/banner/list')
+        const res = await axios.get('/api/admin/banner/list')
         console.log('轮播图响应:', res.data)
         if (res.data.code === 200) {
           banners.value = res.data.data || []
@@ -221,7 +221,7 @@ export default {
 
     const deleteBanner = async (id) => {
       try {
-        const res = await axios.delete(`http://localhost:8083/api/admin/banner/delete?id=${id}`)
+        const res = await axios.delete(`/api/admin/banner/delete?id=${id}`)
         if (res.data.code === 200) {
           message.success('删除成功')
           loadBanners()
@@ -238,9 +238,9 @@ export default {
       try {
         let res
         if (bannerForm.value.id) {
-          res = await axios.post('http://localhost:8083/api/admin/banner/update', bannerForm.value)
+          res = await axios.post('/api/admin/banner/update', bannerForm.value)
         } else {
-          res = await axios.post('http://localhost:8083/api/admin/banner/add', bannerForm.value)
+          res = await axios.post('/api/admin/banner/add', bannerForm.value)
         }
         if (res.data.code === 200) {
           message.success('保存成功')
@@ -289,7 +289,7 @@ export default {
       formData.append('file', file)
       
       try {
-        const res = await axios.post('http://localhost:8083/api/admin/banner/upload', formData, {
+        const res = await axios.post('/api/admin/banner/upload', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         })
         if (res.data.code === 200) {
