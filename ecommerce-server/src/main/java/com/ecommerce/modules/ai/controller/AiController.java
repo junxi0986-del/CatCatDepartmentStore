@@ -80,6 +80,7 @@ public class AiController {
             Map<String, Object> searchResult = aiService.searchWithSelection(message, productMaps, chatHistory);
             String aiReply = (String) searchResult.get("reply");
             List<Number> selectedIds = (List<Number>) searchResult.get("ids");
+            boolean protocolFound = Boolean.TRUE.equals(searchResult.get("protocolFound"));
 
             // 优先使用 AI 精选的商品（按 AI 给出的推荐顺序）
             List<Product> matchedProducts = new ArrayList<>();
@@ -94,41 +95,10 @@ public class AiController {
                         matchedProducts.add(p);
                     }
                 }
-            }
-
-            // 兜底：AI 未选中任何商品时，退回关键词规则
-            if (matchedProducts.isEmpty()) {
-                matchedProducts = allProducts.stream()
-                        .filter(p -> {
-                            if (message.contains("手机") && p.getCategoryId() != null && p.getCategoryId() == 1) {
-                                return true;
-                            }
-                            if (message.contains("电脑") && p.getCategoryId() != null && p.getCategoryId() == 2) {
-                                return true;
-                            }
-                            if (message.contains("服装") && p.getCategoryId() != null && p.getCategoryId() == 3) {
-                                return true;
-                            }
-                            if (message.contains("家电") && p.getCategoryId() != null && p.getCategoryId() == 4) {
-                                return true;
-                            }
-                            if (message.contains("家居") && p.getCategoryId() != null && p.getCategoryId() == 5) {
-                                return true;
-                            }
-                            if (p.getName() != null) {
-                                String name = p.getName().toLowerCase();
-                                String msg = message.toLowerCase();
-                                if (name.contains(msg)) {
-                                    return true;
-                                }
-                            }
-                            if (p.getDetail() != null && p.getDetail().contains(message)) {
-                                return true;
-                            }
-                            return false;
-                        })
-                        .limit(10)
-                        .toList();
+            } else if (!protocolFound) {
+                // AI 未按协议输出时才用关键词规则兜底；
+                // AI 明确判断"没有匹配商品"（协议行存在但为空）时尊重该判断
+                matchedProducts = fallbackMatch(message, allProducts);
             }
 
             List<Map<String, Object>> responseProducts = new ArrayList<>();
@@ -198,6 +168,7 @@ public class AiController {
             Map<String, Object> searchResult = aiService.searchWithSelection(query, productMaps, null);
             String aiReply = (String) searchResult.get("reply");
             List<Number> selectedIds = (List<Number>) searchResult.get("ids");
+            boolean protocolFound = Boolean.TRUE.equals(searchResult.get("protocolFound"));
 
             // 优先使用 AI 精选的商品（按 AI 给出的推荐顺序）
             List<Product> matchedProducts = new ArrayList<>();
@@ -212,29 +183,9 @@ public class AiController {
                         matchedProducts.add(p);
                     }
                 }
-            }
-
-            // 兜底：AI 未选中任何商品时，退回关键词规则
-            if (matchedProducts.isEmpty()) {
-                List<Product> fallback = allProducts.stream()
-                        .filter(p -> {
-                            if (p.getName() != null && p.getName().contains(query)) {
-                                return true;
-                            }
-                            if (query.contains("手机") && p.getCategoryId() != null && p.getCategoryId() == 1) {
-                                return true;
-                            }
-                            if (query.contains("电脑") && p.getCategoryId() != null && p.getCategoryId() == 2) {
-                                return true;
-                            }
-                            if (query.contains("服装") && p.getCategoryId() != null && p.getCategoryId() == 3) {
-                                return true;
-                            }
-                            return false;
-                        })
-                        .limit(20)
-                        .toList();
-                matchedProducts.addAll(fallback);
+            } else if (!protocolFound) {
+                // AI 未按协议输出时才用关键词规则兜底
+                matchedProducts = fallbackMatch(query, allProducts);
             }
 
             result.put("code", 200);
@@ -251,6 +202,46 @@ public class AiController {
         }
 
         return result;
+    }
+
+    /**
+     * 关键词兜底匹配（仅在 AI 未按协议输出时使用）。
+     * 按商品名称关键词匹配，不依赖 category_id（商品数据的类别归属可能不准确，
+     * 例如机械键盘的 category_id 与手机相同）。
+     */
+    private List<Product> fallbackMatch(String message, List<Product> allProducts) {
+        Map<String, List<String>> categoryKeywords = new LinkedHashMap<>();
+        categoryKeywords.put("手机", List.of("手机", "iphone", "苹果", "华为", "小米", "三星", "荣耀", "oppo", "vivo", "红米", "一加", "realme", "魅族", "中兴", "努比亚"));
+        categoryKeywords.put("电脑", List.of("电脑", "笔记本", "macbook", "laptop", "台式", "拯救者", "thinkpad", "mac"));
+        categoryKeywords.put("平板", List.of("平板", "ipad", "pad"));
+        categoryKeywords.put("服装", List.of("恤", "衬衫", "外套", "卫衣", "裤", "裙", "夹克", "羽绒服", "毛衣"));
+        categoryKeywords.put("家电", List.of("冰箱", "洗衣机", "空调", "电视", "微波炉", "电饭煲", "热水器", "吸尘器"));
+
+        String msg = message.toLowerCase();
+        List<String> nameKeywords = new ArrayList<>();
+        for (Map.Entry<String, List<String>> entry : categoryKeywords.entrySet()) {
+            if (msg.contains(entry.getKey())) {
+                nameKeywords.addAll(entry.getValue());
+            }
+        }
+
+        List<Product> out = new ArrayList<>();
+        if (nameKeywords.isEmpty()) {
+            return out;
+        }
+        for (Product p : allProducts) {
+            String name = p.getName() == null ? "" : p.getName().toLowerCase();
+            for (String kw : nameKeywords) {
+                if (name.contains(kw)) {
+                    out.add(p);
+                    break;
+                }
+            }
+            if (out.size() >= 8) {
+                break;
+            }
+        }
+        return out;
     }
 
     @PostMapping("/chat/order")

@@ -184,7 +184,7 @@ public class AiService {
         StringBuilder productContext = new StringBuilder("以下是商城中的商品列表：\n");
         for (Map<String, Object> product : products) {
             String desc = product.get("description") != null ? product.get("description").toString() : "";
-            String shortDesc = desc.length() > 50 ? desc.substring(0, 50) + "..." : (desc.isEmpty() ? "无描述" : desc);
+            String shortDesc = desc.length() > 150 ? desc.substring(0, 150) + "..." : (desc.isEmpty() ? "无描述" : desc);
             productContext.append(String.format("- %s (ID:%s, 价格:%s元, 描述:%s)\n",
                     product.get("name"),
                     product.get("id"),
@@ -204,13 +204,14 @@ public class AiService {
             请从上面的商品列表中挑选真正符合用户需求的商品并给出推荐理由。
             挑选规则（必须严格遵守）：
             1. 用户指定品牌时只能选该品牌的商品。例如用户要"苹果手机"，只能选名称含"苹果"或"iPhone"的商品，禁止选择华为、小米等其他品牌。
-            2. 用户指定品类时只能选该品类的商品，禁止搭配推荐键盘、鼠标、耳机等无关配件。
-            3. 宁缺毋滥：没有真正匹配的商品时，就不要选择任何商品，并如实告知用户没有找到，给出购物建议。
-            4. 商品名称可能存在乱码，请根据价格和描述内容判断商品类型。
-            5. 如果商品价格在3000元以上且描述中包含"手机"、"Pro"、"Max"、"Ultra"、"骁龙"、"麒麟"等关键词，可能是手机。
+            2. 品类必须与用户需求一致（用户要手机就只能选手机类商品），绝对禁止推荐键盘、鼠标、耳机、音箱、手表等无关品类的商品。
+            3. 价格匹配规则：有符合用户预算的商品时优先选它们；如果没有完全符合预算的商品，可以推荐同品类中价格最接近、最能满足用户用途的商品（例如用户要2000元的游戏手机，可以推荐性价比高、适合游戏的小米14），但必须在回复中明确说明价格与需求的差异。
+            4. 只有当商城里完全没有该品类的商品时，才不选择任何商品，并如实告知用户。
+            5. 商品名称可能存在乱码，请根据价格和描述内容判断商品类型。
+            6. 如果商品价格在3000元以上且描述中包含"手机"、"Pro"、"Max"、"Ultra"、"骁龙"、"麒麟"等关键词，可能是手机。
 
             输出格式（必须严格遵守）：
-            - 先输出给用户看的回复（有匹配时列出推荐理由与商品信息；无匹配时说明没有找到合适商品并给出购物建议），回复正文中不要出现商品ID。
+            - 先输出给用户看的回复（列出推荐理由与商品信息，说明价格差异等；完全没有匹配品类时说明没有找到并给出购物建议），回复正文中不要出现商品ID。
             - 最后一行单独输出选中商品的ID，格式为：SELECTED_IDS:1,5,8（ID用英文逗号分隔，按推荐优先级排序）
             - 没有选中任何商品时，最后一行输出：SELECTED_IDS:
             """, systemPrompt, productContext.toString(), query);
@@ -260,14 +261,19 @@ public class AiService {
         }
     }
 
-    /** 从 AI 回复中解析 SELECTED_IDS 协议行，返回 {reply: 去除协议行后的正文, ids: 选中的商品ID列表} */
+    /** 从 AI 回复中解析 SELECTED_IDS 协议行。
+     * 返回 {reply: 去除协议行后的正文, ids: 选中的商品ID列表, protocolFound: AI是否输出了协议行}。
+     * protocolFound=true 且 ids 为空 表示 AI 有意判断"没有匹配商品"，后端应尊重该判断；
+     * protocolFound=false 表示 AI 未按协议输出，后端可用关键词规则兜底。 */
     private Map<String, Object> extractSelection(String aiResponse) {
         String reply = aiResponse == null ? "" : aiResponse;
         List<Long> ids = new ArrayList<>();
+        boolean protocolFound = false;
         StringBuilder cleaned = new StringBuilder();
         for (String line : reply.split("\\r?\\n")) {
             String trimmed = line.trim();
             if (trimmed.startsWith("SELECTED_IDS:")) {
+                protocolFound = true;
                 String idPart = trimmed.substring("SELECTED_IDS:".length()).trim();
                 if (!idPart.isEmpty()) {
                     for (String token : idPart.split("[,，\\s]+")) {
@@ -284,6 +290,7 @@ public class AiService {
         Map<String, Object> result = new HashMap<>();
         result.put("reply", cleaned.toString().trim());
         result.put("ids", ids);
+        result.put("protocolFound", protocolFound);
         return result;
     }
 
