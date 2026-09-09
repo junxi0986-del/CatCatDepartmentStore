@@ -77,39 +77,59 @@ public class AiController {
                 productMaps.add(productMap);
             }
 
-            String aiReply = aiService.search(message, productMaps, chatHistory);
+            Map<String, Object> searchResult = aiService.searchWithSelection(message, productMaps, chatHistory);
+            String aiReply = (String) searchResult.get("reply");
+            List<Number> selectedIds = (List<Number>) searchResult.get("ids");
 
-            List<Product> matchedProducts = allProducts.stream()
-                    .filter(p -> {
-                        if (message.contains("手机") && p.getCategoryId() != null && p.getCategoryId() == 1) {
-                            return true;
-                        }
-                        if (message.contains("电脑") && p.getCategoryId() != null && p.getCategoryId() == 2) {
-                            return true;
-                        }
-                        if (message.contains("服装") && p.getCategoryId() != null && p.getCategoryId() == 3) {
-                            return true;
-                        }
-                        if (message.contains("家电") && p.getCategoryId() != null && p.getCategoryId() == 4) {
-                            return true;
-                        }
-                        if (message.contains("家居") && p.getCategoryId() != null && p.getCategoryId() == 5) {
-                            return true;
-                        }
-                        if (p.getName() != null) {
-                            String name = p.getName().toLowerCase();
-                            String msg = message.toLowerCase();
-                            if (name.contains(msg)) {
+            // 优先使用 AI 精选的商品（按 AI 给出的推荐顺序）
+            List<Product> matchedProducts = new ArrayList<>();
+            if (selectedIds != null && !selectedIds.isEmpty()) {
+                Map<Long, Product> productById = new HashMap<>();
+                for (Product p : allProducts) {
+                    productById.put(p.getId(), p);
+                }
+                for (Number id : selectedIds) {
+                    Product p = productById.get(id.longValue());
+                    if (p != null && !matchedProducts.contains(p)) {
+                        matchedProducts.add(p);
+                    }
+                }
+            }
+
+            // 兜底：AI 未选中任何商品时，退回关键词规则
+            if (matchedProducts.isEmpty()) {
+                matchedProducts = allProducts.stream()
+                        .filter(p -> {
+                            if (message.contains("手机") && p.getCategoryId() != null && p.getCategoryId() == 1) {
                                 return true;
                             }
-                        }
-                        if (p.getDetail() != null && p.getDetail().contains(message)) {
-                            return true;
-                        }
-                        return false;
-                    })
-                    .limit(10)
-                    .toList();
+                            if (message.contains("电脑") && p.getCategoryId() != null && p.getCategoryId() == 2) {
+                                return true;
+                            }
+                            if (message.contains("服装") && p.getCategoryId() != null && p.getCategoryId() == 3) {
+                                return true;
+                            }
+                            if (message.contains("家电") && p.getCategoryId() != null && p.getCategoryId() == 4) {
+                                return true;
+                            }
+                            if (message.contains("家居") && p.getCategoryId() != null && p.getCategoryId() == 5) {
+                                return true;
+                            }
+                            if (p.getName() != null) {
+                                String name = p.getName().toLowerCase();
+                                String msg = message.toLowerCase();
+                                if (name.contains(msg)) {
+                                    return true;
+                                }
+                            }
+                            if (p.getDetail() != null && p.getDetail().contains(message)) {
+                                return true;
+                            }
+                            return false;
+                        })
+                        .limit(10)
+                        .toList();
+            }
 
             List<Map<String, Object>> responseProducts = new ArrayList<>();
             for (Product p : matchedProducts) {
@@ -175,26 +195,47 @@ public class AiController {
                 productMaps.add(productMap);
             }
 
-            String aiReply = aiService.search(query, productMaps);
+            Map<String, Object> searchResult = aiService.searchWithSelection(query, productMaps, null);
+            String aiReply = (String) searchResult.get("reply");
+            List<Number> selectedIds = (List<Number>) searchResult.get("ids");
 
-            List<Product> matchedProducts = allProducts.stream()
-                    .filter(p -> {
-                        if (p.getName() != null && p.getName().contains(query)) {
-                            return true;
-                        }
-                        if (query.contains("手机") && p.getCategoryId() != null && p.getCategoryId() == 1) {
-                            return true;
-                        }
-                        if (query.contains("电脑") && p.getCategoryId() != null && p.getCategoryId() == 2) {
-                            return true;
-                        }
-                        if (query.contains("服装") && p.getCategoryId() != null && p.getCategoryId() == 3) {
-                            return true;
-                        }
-                        return false;
-                    })
-                    .limit(20)
-                    .toList();
+            // 优先使用 AI 精选的商品（按 AI 给出的推荐顺序）
+            List<Product> matchedProducts = new ArrayList<>();
+            if (selectedIds != null && !selectedIds.isEmpty()) {
+                Map<Long, Product> productById = new HashMap<>();
+                for (Product p : allProducts) {
+                    productById.put(p.getId(), p);
+                }
+                for (Number id : selectedIds) {
+                    Product p = productById.get(id.longValue());
+                    if (p != null && !matchedProducts.contains(p)) {
+                        matchedProducts.add(p);
+                    }
+                }
+            }
+
+            // 兜底：AI 未选中任何商品时，退回关键词规则
+            if (matchedProducts.isEmpty()) {
+                List<Product> fallback = allProducts.stream()
+                        .filter(p -> {
+                            if (p.getName() != null && p.getName().contains(query)) {
+                                return true;
+                            }
+                            if (query.contains("手机") && p.getCategoryId() != null && p.getCategoryId() == 1) {
+                                return true;
+                            }
+                            if (query.contains("电脑") && p.getCategoryId() != null && p.getCategoryId() == 2) {
+                                return true;
+                            }
+                            if (query.contains("服装") && p.getCategoryId() != null && p.getCategoryId() == 3) {
+                                return true;
+                            }
+                            return false;
+                        })
+                        .limit(20)
+                        .toList();
+                matchedProducts.addAll(fallback);
+            }
 
             result.put("code", 200);
             result.put("message", "success");

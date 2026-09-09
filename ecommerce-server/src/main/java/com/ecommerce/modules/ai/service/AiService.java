@@ -172,6 +172,15 @@ public class AiService {
     }
 
     public String search(String query, List<Map<String, Object>> products, List<ChatMessage> history) {
+        return (String) searchWithSelection(query, products, history).get("reply");
+    }
+
+    /**
+     * AI 搜索 + 精选商品。
+     * 让模型从商品列表中挑选真正匹配的商品并以 SELECTED_IDS 协议返回 ID，
+     * 后端只展示 AI 选中的商品，避免"提到手机就返回整个手机类别"的宽泛召回。
+     */
+    public Map<String, Object> searchWithSelection(String query, List<Map<String, Object>> products, List<ChatMessage> history) {
         StringBuilder productContext = new StringBuilder("以下是商城中的商品列表：\n");
         for (Map<String, Object> product : products) {
             String desc = product.get("description") != null ? product.get("description").toString() : "";
@@ -192,12 +201,18 @@ public class AiService {
 
             用户想要搜索：%s
 
-            请根据用户的需求，从上面的商品列表中推荐合适的商品。
-            商品名称可能存在乱码，请根据价格和描述内容判断商品类型。
-            如果商品价格在3000元以上且描述中包含"手机"、"Pro"、"Max"、"Ultra"、"骁龙"、"麒麟"等关键词，可能是手机。
-            如果商品列表中有匹配的商品，请列出推荐理由和商品信息。
-            如果没有合适的商品，请告诉用户目前没有找到匹配的商品，并给出购物建议。
-            回复要简洁明了，突出商品的关键信息。
+            请从上面的商品列表中挑选真正符合用户需求的商品并给出推荐理由。
+            挑选规则（必须严格遵守）：
+            1. 用户指定品牌时只能选该品牌的商品。例如用户要"苹果手机"，只能选名称含"苹果"或"iPhone"的商品，禁止选择华为、小米等其他品牌。
+            2. 用户指定品类时只能选该品类的商品，禁止搭配推荐键盘、鼠标、耳机等无关配件。
+            3. 宁缺毋滥：没有真正匹配的商品时，就不要选择任何商品，并如实告知用户没有找到，给出购物建议。
+            4. 商品名称可能存在乱码，请根据价格和描述内容判断商品类型。
+            5. 如果商品价格在3000元以上且描述中包含"手机"、"Pro"、"Max"、"Ultra"、"骁龙"、"麒麟"等关键词，可能是手机。
+
+            输出格式（必须严格遵守）：
+            - 先输出给用户看的回复（有匹配时列出推荐理由与商品信息；无匹配时说明没有找到合适商品并给出购物建议），回复正文中不要出现商品ID。
+            - 最后一行单独输出选中商品的ID，格式为：SELECTED_IDS:1,5,8（ID用英文逗号分隔，按推荐优先级排序）
+            - 没有选中任何商品时，最后一行输出：SELECTED_IDS:
             """, systemPrompt, productContext.toString(), query);
 
         try {
@@ -230,16 +245,46 @@ public class AiService {
 
             String aiResponse = aiHttpClient.callDeepSeekApi(apiKey, deepseekApiUrl, deepseekModel, messages);
 
-            if (aiResponse != null) {
-                return aiResponse;
+            if (aiResponse == null) {
+                aiResponse = "抱歉，AI搜索服务暂时无法使用。";
             }
 
-            return "抱歉，AI搜索服务暂时无法使用。";
+            return extractSelection(aiResponse);
 
         } catch (Exception e) {
             e.printStackTrace();
-            return "抱歉，AI搜索服务出现错误：" + e.getMessage();
+            Map<String, Object> result = new HashMap<>();
+            result.put("reply", "抱歉，AI搜索服务出现错误：" + e.getMessage());
+            result.put("ids", new ArrayList<Long>());
+            return result;
         }
+    }
+
+    /** 从 AI 回复中解析 SELECTED_IDS 协议行，返回 {reply: 去除协议行后的正文, ids: 选中的商品ID列表} */
+    private Map<String, Object> extractSelection(String aiResponse) {
+        String reply = aiResponse == null ? "" : aiResponse;
+        List<Long> ids = new ArrayList<>();
+        StringBuilder cleaned = new StringBuilder();
+        for (String line : reply.split("\\r?\\n")) {
+            String trimmed = line.trim();
+            if (trimmed.startsWith("SELECTED_IDS:")) {
+                String idPart = trimmed.substring("SELECTED_IDS:".length()).trim();
+                if (!idPart.isEmpty()) {
+                    for (String token : idPart.split("[,，\\s]+")) {
+                        try {
+                            ids.add(Long.parseLong(token.trim()));
+                        } catch (NumberFormatException ignored) {
+                        }
+                    }
+                }
+            } else {
+                cleaned.append(line).append('\n');
+            }
+        }
+        Map<String, Object> result = new HashMap<>();
+        result.put("reply", cleaned.toString().trim());
+        result.put("ids", ids);
+        return result;
     }
 
     @Data
