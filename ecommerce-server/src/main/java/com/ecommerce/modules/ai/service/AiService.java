@@ -199,21 +199,27 @@ public class AiService {
             以下是商城中的商品列表：
             %s
 
-            用户想要搜索：%s
+            用户消息：%s
 
-            请从上面的商品列表中挑选真正符合用户需求的商品并给出推荐理由。
+            请根据用户消息决定如何回应：
+            【场景A：用户有购物需求】从上面的商品列表中挑选真正符合用户需求的商品并给出推荐理由。
             挑选规则（必须严格遵守）：
             1. 用户指定品牌时只能选该品牌的商品。例如用户要"苹果手机"，只能选名称含"苹果"或"iPhone"的商品，禁止选择华为、小米等其他品牌。
             2. 品类必须与用户需求一致（用户要手机就只能选手机类商品），绝对禁止推荐键盘、鼠标、耳机、音箱、手表等无关品类的商品。
-            3. 价格匹配规则：有符合用户预算的商品时优先选它们；如果没有完全符合预算的商品，可以推荐同品类中价格最接近、最能满足用户用途的商品（例如用户要2000元的游戏手机，可以推荐性价比高、适合游戏的小米14），但必须在回复中明确说明价格与需求的差异。
+            3. 价格匹配规则：有符合用户预算的商品时优先选它们；如果商城里没有用户想要的价位/型号/配置的商品，必须先明确告诉用户"目前商城暂时没有您想要的XX"，然后推荐1-3个同品类中最接近用户需求的替代商品，并说明它们与用户需求的差异。
             4. 只有当商城里完全没有该品类的商品时，才不选择任何商品，并如实告知用户。
             5. 商品名称可能存在乱码，请根据价格和描述内容判断商品类型。
             6. 如果商品价格在3000元以上且描述中包含"手机"、"Pro"、"Max"、"Ultra"、"骁龙"、"麒麟"等关键词，可能是手机。
 
+            【场景B：用户没有购物需求】用户只是打招呼、闲聊、问购物技巧等，正常自然地聊天回应即可，不要推荐任何商品。
+
             输出格式（必须严格遵守）：
-            - 先输出给用户看的回复（列出推荐理由与商品信息，说明价格差异等；完全没有匹配品类时说明没有找到并给出购物建议），回复正文中不要出现商品ID。
-            - 最后一行单独输出选中商品的ID，格式为：SELECTED_IDS:1,5,8（ID用英文逗号分隔，按推荐优先级排序）
-            - 没有选中任何商品时，最后一行输出：SELECTED_IDS:
+            - 先输出给用户看的回复：场景A中列出每个推荐商品的理由与商品信息，说明价格差异等；场景B正常聊天。回复正文中不要出现商品ID。
+            - 最后一行单独输出协议行：
+              选中了商品时：SELECTED_IDS:商品ID:一句话推荐理由|商品ID:一句话推荐理由
+              （按推荐优先级排序，理由要与该商品一一对应，理由中不能出现"|"和换行）
+              示例：SELECTED_IDS:3:骁龙8Gen3性能强劲适合玩游戏|7:性价比高屏幕护眼
+              没有选中任何商品时：SELECTED_IDS:
             """, systemPrompt, productContext.toString(), query);
 
         try {
@@ -262,24 +268,50 @@ public class AiService {
     }
 
     /** 从 AI 回复中解析 SELECTED_IDS 协议行。
-     * 返回 {reply: 去除协议行后的正文, ids: 选中的商品ID列表, protocolFound: AI是否输出了协议行}。
+     * 协议格式：SELECTED_IDS:id:推荐理由|id:推荐理由（也兼容纯 ID 列表 SELECTED_IDS:1,5,8）
+     * 返回 {reply: 去除协议行后的正文, ids: 选中的商品ID列表, reasons: 商品ID->推荐理由, protocolFound: AI是否输出了协议行}。
      * protocolFound=true 且 ids 为空 表示 AI 有意判断"没有匹配商品"，后端应尊重该判断；
      * protocolFound=false 表示 AI 未按协议输出，后端可用关键词规则兜底。 */
     private Map<String, Object> extractSelection(String aiResponse) {
         String reply = aiResponse == null ? "" : aiResponse;
         List<Long> ids = new ArrayList<>();
+        Map<Long, String> reasons = new HashMap<>();
         boolean protocolFound = false;
         StringBuilder cleaned = new StringBuilder();
         for (String line : reply.split("\\r?\\n")) {
             String trimmed = line.trim();
             if (trimmed.startsWith("SELECTED_IDS:")) {
                 protocolFound = true;
-                String idPart = trimmed.substring("SELECTED_IDS:".length()).trim();
-                if (!idPart.isEmpty()) {
-                    for (String token : idPart.split("[,，\\s]+")) {
-                        try {
-                            ids.add(Long.parseLong(token.trim()));
-                        } catch (NumberFormatException ignored) {
+                String payload = trimmed.substring("SELECTED_IDS:".length()).trim();
+                if (!payload.isEmpty()) {
+                    // 纯 ID 列表（逗号分隔）或 id:理由 对（| 分隔）
+                    if (payload.contains(":") || payload.contains("：")) {
+                        for (String pair : payload.split("\\|")) {
+                            String p = pair.trim();
+                            if (p.isEmpty()) {
+                                continue;
+                            }
+                            String[] parts = p.split("[:：]", 2);
+                            try {
+                                Long id = Long.parseLong(parts[0].trim());
+                                if (!ids.contains(id)) {
+                                    ids.add(id);
+                                }
+                                if (parts.length > 1 && !parts[1].trim().isEmpty()) {
+                                    reasons.put(id, parts[1].trim());
+                                }
+                            } catch (NumberFormatException ignored) {
+                            }
+                        }
+                    } else {
+                        for (String token : payload.split("[,，\\s]+")) {
+                            try {
+                                Long id = Long.parseLong(token.trim());
+                                if (!ids.contains(id)) {
+                                    ids.add(id);
+                                }
+                            } catch (NumberFormatException ignored) {
+                            }
                         }
                     }
                 }
@@ -290,6 +322,7 @@ public class AiService {
         Map<String, Object> result = new HashMap<>();
         result.put("reply", cleaned.toString().trim());
         result.put("ids", ids);
+        result.put("reasons", reasons);
         result.put("protocolFound", protocolFound);
         return result;
     }

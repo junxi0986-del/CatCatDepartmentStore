@@ -53,6 +53,7 @@
                     <div class="product-info">
                       <div class="product-name">{{ product.name }}</div>
                       <div class="product-price">¥{{ product.price }}</div>
+                      <div v-if="product.reason" class="product-reason">💡 {{ product.reason }}</div>
                       <div class="product-actions">
                         <el-button type="primary" size="small" @click.stop="addToCart(product)">加入购物车</el-button>
                       </div>
@@ -549,6 +550,16 @@ export default {
   color: #ff4400;
   font-weight: bold;
   margin-bottom: 8px;
+}
+
+.product-reason {
+  font-size: 13px;
+  color: #67c23a;
+  background: #f0f9eb;
+  border-radius: 4px;
+  padding: 4px 8px;
+  margin-bottom: 8px;
+  line-height: 1.4;
 }
 
 .product-actions {

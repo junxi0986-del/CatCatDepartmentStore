@@ -80,6 +80,7 @@ public class AiController {
             Map<String, Object> searchResult = aiService.searchWithSelection(message, productMaps, chatHistory);
             String aiReply = (String) searchResult.get("reply");
             List<Number> selectedIds = (List<Number>) searchResult.get("ids");
+            Map<Long, String> reasons = (Map<Long, String>) searchResult.get("reasons");
             boolean protocolFound = Boolean.TRUE.equals(searchResult.get("protocolFound"));
 
             // 优先使用 AI 精选的商品（按 AI 给出的推荐顺序）
@@ -109,6 +110,7 @@ public class AiController {
                 productMap.put("price", p.getPrice());
                 productMap.put("pic", p.getPic());
                 productMap.put("description", p.getDetail());
+                productMap.put("reason", reasons != null ? reasons.get(p.getId()) : null);
                 responseProducts.add(productMap);
             }
 
