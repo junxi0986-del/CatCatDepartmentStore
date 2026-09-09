@@ -49,6 +49,26 @@ def wait_port(port, timeout=60):
         time.sleep(1)
     return False
 
+def _resolve_api_key():
+    """获取 DEEPSEEK_API_KEY：优先当前环境，否则从注册表读取最新设置值。
+    这样即使资源管理器继承的是开机时的旧环境，双击启动也能拿到 Key。"""
+    key = os.environ.get('DEEPSEEK_API_KEY', '')
+    if key:
+        return key
+    try:
+        import winreg
+        for root in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
+            try:
+                with winreg.OpenKey(root, r'SYSTEM\CurrentControlSet\Control\Session Manager\Environment') as k:
+                    val, _ = winreg.QueryValueEx(k, 'DEEPSEEK_API_KEY')
+                    if val:
+                        return val
+            except OSError:
+                continue
+    except Exception:
+        pass
+    return ''
+
 def run_command(cmd, cwd=None, env=None, name='process'):
     """运行命令"""
     log(f"启动 {name}: {cmd}")
@@ -129,6 +149,14 @@ def main():
         # input("按回车继续...")
     
     try:
+        # 2.5 确保拿到最新的 DEEPSEEK_API_KEY（Explorer 可能继承的是开机时的旧环境）
+        fresh_key = _resolve_api_key()
+        if fresh_key:
+            os.environ['DEEPSEEK_API_KEY'] = fresh_key
+            log(f"DEEPSEEK_API_KEY 已就绪 (sk-***{fresh_key[-4:]})")
+        else:
+            log("未检测到 DEEPSEEK_API_KEY，AI 功能将不可用（普通功能不受影响）", 'WARNING')
+
         # 3. 启动Java后端
         log(f"启动Java后端 (端口 {SERVER_PORT})...")
         # 使用Maven运行，需要配置好环境
